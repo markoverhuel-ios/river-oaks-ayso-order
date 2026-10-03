@@ -45,9 +45,13 @@ var ITEMS = {
   ZL07093: ['808 Pulsar Backpack', 'Black', '808', 36.45, ['One size']]
 };
 
-var ORDER_HEAD = ['Received', 'Order ID', 'Player', 'Jersey #', 'Team', 'Parent', 'Contact', 'Item', 'Colour', 'Style',
+// Orders:   A Received, B Order ID, C Player, D Jersey #, E Team, F Parent, G Item, H Colour, I Style, J Store item,
+//           K Size, L Qty, M Price, N Line total
+// Families: A Received, B Order ID, C Player, D Jersey #, E Team, F Parent, G Notes, H Items, I Subtotal, J Tax,
+//           K Total, L Paid?
+var ORDER_HEAD = ['Received', 'Order ID', 'Player', 'Jersey #', 'Team', 'Parent', 'Item', 'Colour', 'Style',
                   'Store item', 'Size', 'Qty', 'Price', 'Line total'];
-var FAMILY_HEAD = ['Received', 'Order ID', 'Player', 'Jersey #', 'Team', 'Parent', 'Contact', 'Notes', 'Items',
+var FAMILY_HEAD = ['Received', 'Order ID', 'Player', 'Jersey #', 'Team', 'Parent', 'Notes', 'Items',
                    'Subtotal', 'Tax', 'Total', 'Paid?'];
 
 /** Run once from the Apps Script editor: creates the three sheets and the Full order summary. */
@@ -55,24 +59,24 @@ function setup() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var orders = sheet_(ss, 'Orders', ORDER_HEAD);
   var fams = sheet_(ss, 'Families', FAMILY_HEAD);
-  orders.getRange('N:O').setNumberFormat('$#,##0.00');
-  fams.getRange('J:L').setNumberFormat('$#,##0.00');
-  fams.getRange('M2:M').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(['Yes', 'No'], true).build());
+  orders.getRange('M:N').setNumberFormat('$#,##0.00');
+  fams.getRange('I:K').setNumberFormat('$#,##0.00');
+  fams.getRange('L2:L').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(['Yes', 'No'], true).build());
 
   var full = ss.getSheetByName('Full order') || ss.insertSheet('Full order');
   full.clear();
   full.getRange('A1').setValue('Full order: every item added up by colour and size. Place these in the Challenger team store.');
   full.getRange('A1').setFontWeight('bold');
-  full.getRange('A3').setFormula('=IFERROR(QUERY(Orders!H:O,"select K, H, I, L, sum(M), sum(O) where M > 0 group by K, H, I, L ' +
-      'order by H, I, L label K \'Store item\', H \'Item\', I \'Colour\', L \'Size\', sum(M) \'Qty\', sum(O) \'Amount\'",1),"No orders yet.")');
+  full.getRange('A3').setFormula('=IFERROR(QUERY(Orders!G:N,"select J, G, H, K, sum(L), sum(N) where L > 0 group by J, G, H, K ' +
+      'order by G, H, K label J \'Store item\', G \'Item\', H \'Colour\', K \'Size\', sum(L) \'Qty\', sum(N) \'Amount\'",1),"No orders yet.")');
   full.getRange('H3').setValue('Items');
-  full.getRange('I3').setFormula('=SUM(Orders!M2:M)');
+  full.getRange('I3').setFormula('=SUM(Orders!L2:L)');
   full.getRange('H4').setValue('Subtotal');
-  full.getRange('I4').setFormula('=SUM(Orders!O2:O)');
+  full.getRange('I4').setFormula('=SUM(Orders!N2:N)');
   full.getRange('H5').setValue('Michigan sales tax');
-  full.getRange('I5').setFormula('=SUM(Families!K2:K)');
+  full.getRange('I5').setFormula('=SUM(Families!J2:J)');
   full.getRange('H6').setValue('Total');
-  full.getRange('I6').setFormula('=SUM(Families!L2:L)');
+  full.getRange('I6').setFormula('=SUM(Families!K2:K)');
   full.getRange('H7').setValue('Families');
   full.getRange('I7').setFormula('=COUNTA(Families!B2:B)');
   full.getRange('H3:H7').setFontWeight('bold');
@@ -111,8 +115,8 @@ function doPost(e) {
     return reply_({ ok: false, error: 'The order could not be read.' });
   }
   var id = clean_(data.orderId, 30);
-  var player = clean_(data.playerName, 80), parent = clean_(data.parentName, 80), contact = clean_(data.contact, 100);
-  if (!id || !player || !parent || !contact) return reply_({ ok: false, error: 'Player name, parent name and contact are required.' });
+  var player = clean_(data.playerName, 80), parent = clean_(data.parentName, 80);
+  if (!id || !player || !parent) return reply_({ ok: false, error: 'Player name and parent name are required.' });
   if (!Array.isArray(data.lines) || !data.lines.length || data.lines.length > 60) return reply_({ ok: false, error: 'The order has no items.' });
 
   var now = new Date(), rows = [], sub = 0, count = 0;
@@ -124,7 +128,7 @@ function doPost(e) {
     }
     var amount = Math.round(qty * it[3] * 100) / 100;
     sub += amount; count += qty;
-    rows.push([now, id, player, clean_(data.playerNumber, 3), clean_(data.team, 60), parent, contact,
+    rows.push([now, id, player, clean_(data.playerNumber, 3), clean_(data.team, 60), parent,
                it[0], it[1], it[2], String(l.code), String(l.size), qty, it[3], amount]);
   }
   sub = Math.round(sub * 100) / 100;
@@ -140,7 +144,7 @@ function doPost(e) {
     var ids = fams.getLastRow() > 1 ? fams.getRange(2, 2, fams.getLastRow() - 1, 1).getValues() : [];
     for (var k = 0; k < ids.length; k++) if (ids[k][0] === id) return reply_({ ok: true, orderId: id, duplicate: true });
     orders.getRange(orders.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
-    fams.appendRow([now, id, player, clean_(data.playerNumber, 3), clean_(data.team, 60), parent, contact,
+    fams.appendRow([now, id, player, clean_(data.playerNumber, 3), clean_(data.team, 60), parent,
                     clean_(data.notes, 200), count, sub, tax, Math.round((sub + tax) * 100) / 100, 'No']);
   } finally {
     lock.releaseLock();

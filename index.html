@@ -91,7 +91,6 @@ input:focus-visible, select:focus-visible, button:focus-visible, textarea:focus-
         <label for="playerNumber">Jersey number<input id="playerNumber" inputmode="numeric" maxlength="3" placeholder="For example 7"></label>
         <label for="team">Team or division<input id="team" maxlength="60" placeholder="For example 10U Girls"></label>
         <label for="parentName"><span>Parent name <span class="req">*</span></span><input id="parentName" autocomplete="name" maxlength="80"></label>
-        <label for="contact"><span>Phone or email <span class="req">*</span></span><input id="contact" autocomplete="email" maxlength="100"></label>
         <label for="notes">Notes<input id="notes" maxlength="200" placeholder="Anything the team manager should know"></label>
       </section>
       <div id="catalog"></div>
@@ -121,7 +120,7 @@ input:focus-visible, select:focus-visible, button:focus-visible, textarea:focus-
 const SW = { White: "#FFFFFF", Blue: "#1E3F8F", Red: "#C8243A", Grey: "#A7ADB5", "Light blue": "#3D8FD6", Orange: "#F07A1E", Green: "#3BA34A", Black: "#111111" };
 const money = n => "$" + n.toFixed(2);
 const $ = id => document.getElementById(id);
-const FIELDS = ["playerName", "playerNumber", "team", "parentName", "contact", "notes"];
+const FIELDS = ["playerName", "playerNumber", "team", "parentName", "notes"];
 const KEY = "ro212-order-v2";
 let order = [];
 let sent = false;
@@ -204,7 +203,7 @@ function renderOrder() {
 function check() {
   const f = fields();
   if (!order.length) return "Add at least one item first.";
-  for (const [k, label] of [["playerName", "player name"], ["parentName", "parent name"], ["contact", "phone or email"]])
+  for (const [k, label] of [["playerName", "player name"], ["parentName", "parent name"]])
     if (!f[k]) { $(k).focus(); return "Enter the " + label + "."; }
   return "";
 }
@@ -213,7 +212,7 @@ function orderText(id) {
   const f = fields(), s = sums();
   return [`River Oaks AYSO 212 uniform order${id ? " " + id : ""}`,
     `Player: ${f.playerName}${f.playerNumber ? "  #" + f.playerNumber : ""}${f.team ? "  (" + f.team + ")" : ""}`,
-    `Parent: ${f.parentName}  Contact: ${f.contact}`, f.notes ? "Notes: " + f.notes : "", "",
+    `Parent: ${f.parentName}`, f.notes ? "Notes: " + f.notes : "", "",
     ...order.map(l => { const it = BY_CODE[l.code]; return `${l.qty} x ${it.label}, size ${l.size}  ${money(l.qty * it.price)}  [store item ${it.code}]`; }),
     "", `Subtotal ${money(s.sub)}  Tax ${money(s.tax)}  Total ${money(s.total)}`].filter((x, i) => x !== "" || i > 3).join("\n");
 }
